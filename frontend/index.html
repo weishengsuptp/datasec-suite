@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>数据安全能力评估 · JR/T 0358-2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="./src/style.css"/>
+</head>
+<body>
+<div id="app">
+
+    <!-- ===== Top toolbar (sticky, single line) ===== -->
+    <header class="toolbar">
+        <div class="brand-mark">金</div>
+        <div class="brand-text">
+            <span class="brand-title">数据安全能力评估</span>
+            <span class="brand-sub" id="subtitle">JR/T 0358-2026</span>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <div class="progress" title="已评估 / 总格子（19 子域 × 4 维度）">
+            <span class="progress-dot"></span>
+            <span><span class="progress-num" id="progress-done">0</span><span class="progress-sep">/</span><span id="progress-total">76</span></span>
+        </div>
+        <div class="theme-switcher" id="theme-switcher">
+            <button class="theme-btn" data-theme="warm" title="暮光 · 琥珀">暖</button>
+            <button class="theme-btn" data-theme="cool" title="极光 · 翠绿">青</button>
+            <button class="theme-btn" data-theme="deep" title="星海 · 深蓝">海</button>
+        </div>
+        <button id="btn-import" class="btn" title="从导出的 HTML 报告恢复评估数据">导入</button>
+        <button id="btn-export" class="btn btn-primary" title="导出静态 HTML 报告">导出</button>
+        <button id="btn-history" class="btn" title="历史快照，可还原任意版本">历史</button>
+    </header>
+
+    <!-- ===== Main content: heatmap + reference in one viewport ===== -->
+    <main class="stage">
+
+        <!-- Heatmap -->
+        <section class="panel panel-heatmap">
+            <header class="panel-head">
+                <h2>能力评估热力图</h2>
+                <span class="panel-hint">单击查看等级说明 · 双击编辑等级与机构描述</span>
+            </header>
+            <div class="heatmap" id="heatmap">
+                <!-- JS-generated grid -->
+            </div>
+        </section>
+
+        <!-- Reference (floating panel, shown on selectCell) -->
+        <section class="panel panel-ref" id="panel-ref">
+            <button class="panel-ref-close" id="panel-ref-close" title="关闭（ESC）" aria-label="关闭等级说明">×</button>
+            <header class="panel-head">
+                <h2>等级说明 <span class="ref-subname" id="ref-sub-name">（请选择上方格子）</span></h2>
+                <span class="panel-hint">"—" 表示沿用低一等级要求</span>
+            </header>
+            <div class="ref-grid" id="ref-grid">
+                <!-- JS-generated grid -->
+            </div>
+        </section>
+    </main>
+
+    <!-- ===== Modal: combined edit (level + note) ===== -->
+    <div id="modal-edit" class="modal-overlay">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <div class="modal-title">
+                    编辑评估
+                    <small id="modal-edit-subtitle"></small>
+                </div>
+                <button class="modal-close" data-close="modal-edit" aria-label="关闭">×</button>
+            </div>
+            <div class="edit-section">
+                <div class="edit-label">① 选择等级</div>
+                <div class="level-picker" id="edit-level-picker"></div>
+            </div>
+            <div class="edit-section">
+                <div class="edit-label">② 填写本机构实际描述与选择依据</div>
+                <textarea id="edit-note" rows="4" placeholder="说明本机构在「组织建设 / 制度流程 / 技术能力 / 人员能力」方面的实际做法、可量化指标、佐证材料链接，以及选择该等级的理由…"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" data-close="modal-edit">取消</button>
+                <button id="edit-clear-note" class="btn btn-ghost">清空描述</button>
+                <button id="edit-save" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Modal: history ===== -->
+    <div id="modal-history" class="modal-overlay">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <div class="modal-title">
+                    历史版本
+                    <small id="modal-history-subtitle">每次保存前自动快照</small>
+                </div>
+                <button class="modal-close" data-close="modal-history" aria-label="关闭">×</button>
+            </div>
+            <div id="history-list" class="history-list"></div>
+        </div>
+    </div>
+
+    <!-- ===== Toast ===== -->
+    <div id="toast" class="toast">
+        <span class="icon">✓</span>
+        <span id="toast-msg"></span>
+    </div>
+</div>
+
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <title>preview</title>
+    <link rel="stylesheet" href="./src/style.css"/>
+</head>
+<body>
+<div id="app">
+    <header class="toolbar">
+        <div class="brand-mark">金</div>
+        <div class="brand-text">
+            <span class="brand-title">数据安全能力评估</span>
+            <span class="brand-sub" id="subtitle">JR/T 0358-2026</span>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <div class="progress">
+            <span class="progress-dot"></span>
+            <span><span class="progress-num" id="progress-done">0</span><span class="progress-sep">/</span><span id="progress-total">76</span></span>
+        </div>
+        <div class="theme-switcher" id="theme-switcher">
+            <button class="theme-btn" data-theme="warm">暖</button>
+            <button class="theme-btn" data-theme="cool">青</button>
+            <button class="theme-btn" data-theme="deep">海</button>
+        </div>
+        <button id="btn-export" class="btn btn-primary">导出</button>
+        <button id="btn-history" class="btn">历史</button>
+    </header>
+    <main class="stage">
+        <section class="panel panel-heatmap">
+            <header class="panel-head">
+                <h2>能力评估热力图</h2>
+                <span class="panel-hint">点击格子选等级 · 双击格子编辑机构描述</span>
+            </header>
+            <div class="heatmap" id="heatmap"></div>
+        </section>
+        <section class="panel panel-ref" id="panel-ref">
+            <button class="panel-ref-close" id="panel-ref-close" title="关闭（ESC）" aria-label="关闭等级说明">×</button>
+            <header class="panel-head">
+                <h2>等级说明 <span class="ref-subname" id="ref-sub-name">（请选择上方格子）</span></h2>
+                <span class="panel-hint">"—" 表示沿用低一等级要求</span>
+            </header>
+            <div class="ref-grid" id="ref-grid"></div>
+        </section>
+    </main>
+    <div id="modal-level" class="modal-overlay"><div class="modal"><div class="modal-header"><div class="modal-title">选择等级<small id="modal-level-subtitle"></small></div><button class="modal-close" data-close="modal-level">×</button></div><div class="level-picker" id="level-picker"></div></div></div>
+    <div id="modal-note" class="modal-overlay"><div class="modal"><div class="modal-header"><div class="modal-title">机构实际描述<small id="modal-note-subtitle"></small></div><button class="modal-close" data-close="modal-note">×</button></div><textarea id="note-text" rows="3"></textarea><div class="modal-actions"><button class="btn" data-close="modal-note">取消</button><button id="note-clear" class="btn btn-ghost">清空</button><button id="note-save" class="btn btn-primary">保存</button></div></div></div>
+    <div id="modal-history" class="modal-overlay"><div class="modal modal-wide"><div class="modal-header"><div class="modal-title">历史版本<small id="modal-history-subtitle">每次保存前自动快照</small></div><button class="modal-close" data-close="modal-history">×</button></div><div id="history-list" class="history-list"></div></div></div>
+    <div id="toast" class="toast"><span class="icon">✓</span><span id="toast-msg"></span></div>
+</div>
+<script src="./src/wails-mock.js"></script>
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>
