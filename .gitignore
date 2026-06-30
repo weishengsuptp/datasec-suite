@@ -27,6 +27,12 @@ _import_test.html
 _exe_screenshot*.png
 
 # ============================================================
+# Root-directory screenshots (history / dev process; keep only docs/screenshots/)
+# ============================================================
+/preview-*.png
+/v*.png
+
+# ============================================================
 # Playwright debug fixtures
 # ============================================================
 _pw_*.json

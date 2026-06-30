@@ -7,7 +7,18 @@
 [![Wails](https://img.shields.io/badge/Wails-v2-red?logo=wails)](https://wails.io)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?logo=windows)](https://www.microsoft.com/windows)
 
-![Preview](./preview-v3-warm-full.png)
+![Overview](./docs/screenshots/01-overview.png)
+
+<table>
+  <tr>
+    <td><img src="./docs/screenshots/02-target-bubble.png" width="400"></td>
+    <td><img src="./docs/screenshots/03-theme.png" width="400"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>子域名 → PDF 建设目标气泡</sub></td>
+    <td align="center"><sub>暖色主题 · 玻璃态视觉</sub></td>
+  </tr>
+</table>
 
 ---
 
