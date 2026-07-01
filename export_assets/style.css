@@ -321,43 +321,71 @@ body {
 }
 
 /* ============================================================
-   Tab bar (heatmap vs dashboard)
+   Tab tooltip (hover over tab-switcher buttons)
    ============================================================ */
-.tab-bar {
-    display: flex;
-    gap: 4px;
-    padding: 0 18px;
-    background: rgba(20, 20, 26, 0.6);
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+.tab-tooltip {
+    position: fixed;
+    z-index: 60;
+    max-width: 320px;
+    padding: 8px 12px;
+    background: rgba(22, 22, 28, 0.97);
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--text);
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity .12s var(--ease), transform .12s var(--ease);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.tab-tooltip.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ============================================================
+   Tab switcher (inline in toolbar)
+   ============================================================ */
+.tab-switcher {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: 8px;
     flex-shrink: 0;
+    align-self: center;
 }
 .tab-btn {
     background: transparent;
     border: none;
     color: var(--text-dim);
-    padding: 10px 18px;
+    padding: 6px 12px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
-    border-bottom: 2px solid transparent;
+    border-radius: 6px;
     transition: all .15s var(--ease);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     user-select: none;
+    position: relative;
 }
 .tab-btn:hover {
     color: var(--text);
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
 }
 .tab-btn.active {
     color: var(--accent);
-    border-bottom-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
 }
 .tab-icon {
-    font-size: 14px;
+    font-size: 13px;
     opacity: 0.85;
 }
 

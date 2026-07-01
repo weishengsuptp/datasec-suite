@@ -187,11 +187,19 @@ function renderHeatmap() {
                     if (bubbleEl && !bubbleEl.classList.contains('pinned')) scheduleHideBubble(220);
                 });
 
-                // click → pinned 气泡（钉住，移到别处不消失）+ 下方参考表切到该子域该维度
+                // click → 再次点击同 cell 关闭浮动面板 + 清选中；否则 selectCell + 钉气泡
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    selectCell(sub.id, dim);
-                    showPinnedBubble(btn);
+                    if (state.selected?.subId === sub.id && state.selected?.dim === dim) {
+                        // 再点同 cell → 关闭
+                        document.querySelectorAll('.hg-cell.selected').forEach(el => el.classList.remove('selected'));
+                        state.selected = null;
+                        if (typeof hideFloatingPanel === 'function') hideFloatingPanel();
+                        if (typeof hideBubble === 'function') hideBubble();
+                    } else {
+                        selectCell(sub.id, dim);
+                        showPinnedBubble(btn);
+                    }
                 });
                 // 双击 = 直接进 edit 态（pinned 态下再次 dblclick = 重新聚焦 textarea）
                 // READ_ONLY 模式下双击无效（只读，不可编辑）
@@ -1101,12 +1109,57 @@ function toast(msg) {
 }
 
 // ============================================================
-// Tab system (heatmap vs dashboard)
+// Tab system (heatmap vs dashboard) + hover tooltip
 // ============================================================
+let tabTooltipEl = null;
+let tabTooltipHideTimer = null;
+
+function showTabTooltip(btn) {
+    const text = btn.dataset.tooltip;
+    if (!text) return;
+    if (!tabTooltipEl) {
+        tabTooltipEl = document.createElement('div');
+        tabTooltipEl.className = 'tab-tooltip';
+        document.body.appendChild(tabTooltipEl);
+    }
+    tabTooltipEl.textContent = text;
+    // 定位：按钮正下方居中
+    tabTooltipEl.style.visibility = 'hidden';
+    tabTooltipEl.classList.add('show');
+    const r = btn.getBoundingClientRect();
+    const tw = tabTooltipEl.offsetWidth;
+    const th = tabTooltipEl.offsetHeight;
+    let left = r.left + r.width / 2 - tw / 2;
+    let top = r.bottom + 6;
+    if (left < 8) left = 8;
+    if (left + tw > window.innerWidth - 8) left = window.innerWidth - tw - 8;
+    if (top + th > window.innerHeight - 8) top = r.top - th - 6;
+    tabTooltipEl.style.left = left + 'px';
+    tabTooltipEl.style.top = top + 'px';
+    tabTooltipEl.style.visibility = 'visible';
+    if (tabTooltipHideTimer) { clearTimeout(tabTooltipHideTimer); tabTooltipHideTimer = null; }
+}
+function hideTabTooltip() {
+    if (tabTooltipEl) tabTooltipEl.classList.remove('show');
+}
+
 function bindTabBar() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        btn.addEventListener('mouseenter', () => showTabTooltip(btn));
+        btn.addEventListener('mouseleave', () => {
+            tabTooltipHideTimer = setTimeout(hideTabTooltip, 120);
+        });
     });
+    // tooltip 自身也支持 hover（鼠标移上去不消失）
+    if (tabTooltipEl) {
+        tabTooltipEl.addEventListener('mouseenter', () => {
+            if (tabTooltipHideTimer) { clearTimeout(tabTooltipHideTimer); tabTooltipHideTimer = null; }
+        });
+        tabTooltipEl.addEventListener('mouseleave', () => {
+            tabTooltipHideTimer = setTimeout(hideTabTooltip, 120);
+        });
+    }
 }
 
 function switchTab(tabId, opts = {}) {
@@ -1124,6 +1177,7 @@ function switchTab(tabId, opts = {}) {
     if (!opts.skipRender && tabId === 'dashboard' && typeof renderDashboard === 'function') {
         renderDashboard();
     }
+    hideTabTooltip();
 }
 
 // ============================================================

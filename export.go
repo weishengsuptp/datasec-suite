@@ -84,6 +84,18 @@ func exportHTML() (string, error) {
             <span class="progress-dot"></span>
             <span><span class="progress-num" id="progress-done">0</span><span class="progress-sep">/</span><span id="progress-total">76</span></span>
         </div>
+        <nav class="tab-switcher" id="tab-bar">
+            <button class="tab-btn" data-tab="heatmap" type="button"
+                data-tooltip="19 子域 × 4 维度的能力热力图 — 点击格子查看等级说明，双击编辑">
+                <span class="tab-icon">▦</span>
+                <span class="tab-label">评估热力图</span>
+            </button>
+            <button class="tab-btn" data-tab="dashboard" type="button"
+                data-tooltip="整体评分 · 4 维度雷达图 · 4 能力域得分 · 等级分布 · TOP/BOTTOM 5 项">
+                <span class="tab-icon">◈</span>
+                <span class="tab-label">分析仪表盘</span>
+            </button>
+        </nav>
         <div class="theme-switcher" id="theme-switcher">
             <button class="theme-btn" data-theme="warm" title="暮光 · 琥珀">暖</button>
             <button class="theme-btn" data-theme="cool" title="极光 · 翠绿">青</button>
@@ -92,23 +104,9 @@ func exportHTML() (string, error) {
         <button id="btn-export" class="btn btn-primary" title="导出静态 HTML 报告">导出</button>
         <button id="btn-history" class="btn" title="历史快照，可还原任意版本">历史</button>
     </header>
-    <nav class="tab-bar" id="tab-bar">
-        <button class="tab-btn" data-tab="heatmap" type="button">
-            <span class="tab-icon">▦</span>
-            <span class="tab-label">评估热力图</span>
-        </button>
-        <button class="tab-btn" data-tab="dashboard" type="button">
-            <span class="tab-icon">◈</span>
-            <span class="tab-label">分析仪表盘</span>
-        </button>
-    </nav>
     <main class="stage">
         <div class="pane pane-heatmap" data-pane="heatmap">
             <section class="panel panel-heatmap">
-                <header class="panel-head">
-                    <h2>能力评估热力图</h2>
-                    <span class="panel-hint">单击查看等级说明 · 双击编辑等级与机构描述</span>
-                </header>
                 <div class="heatmap" id="heatmap"></div>
             </section>
             <section class="panel panel-ref" id="panel-ref">
@@ -122,10 +120,6 @@ func exportHTML() (string, error) {
         </div>
         <div class="pane pane-dashboard" data-pane="dashboard">
             <section class="panel panel-dashboard">
-                <header class="panel-head">
-                    <h2>分析仪表盘</h2>
-                    <span class="panel-hint">基于已评估数据聚合 · 仅参考</span>
-                </header>
                 <div class="dashboard" id="dashboard"></div>
             </section>
         </div>
