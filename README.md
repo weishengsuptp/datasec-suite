@@ -7,6 +7,9 @@
 [![Wails](https://img.shields.io/badge/Wails-v2-red?logo=wails)](https://wails.io)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?logo=windows)](https://www.microsoft.com/windows)
 
+> ⚠️ **Status: under heavy development. No stable release yet.**
+> The code is shared publicly for transparency, but please do **not** distribute or rely on this as a finished product. Use only for evaluation and feedback. Stable releases will be tagged when the project is ready.
+
 ![Overview](./docs/screenshots/01-overview.png)
 
 <table>
@@ -78,9 +81,9 @@
 
 ### Download / 下载
 
-Grab the latest release from the [Releases page](https://github.com/weishengsuptp/datasec-suite/releases).
+> **No release yet.** See status notice at the top of this README.
 
-Latest Windows build is a single file (~8.8 MB):
+When a stable release is published, the Windows binary will be a single file (~8.8 MB):
 ```
 datasec-suite-app.exe
 ```
@@ -145,11 +148,13 @@ data/                            (created at first run)
 
 ## Roadmap / 路线图
 
-- [x] **v0.1** — JR/T 0358-2026 evaluator (heatmap + notes + history + export + import)
+- [ ] **v0.1** — JR/T 0358-2026 evaluator (heatmap + notes + history + export + import) — _internal development, not released_
 - [ ] **v0.2** — GB/T 37988-2019 (DSMM) support
 - [ ] **v0.3** — Multi-standard architecture (hot-swap standards at runtime)
 - [ ] **v0.4** — Custom dimension/level weighting
 - [ ] **v0.5** — Cross-standard comparison reports
+
+Stable releases will only be tagged when each milestone is genuinely ready for external use.
 
 ---
 
