@@ -92,22 +92,43 @@ func exportHTML() (string, error) {
         <button id="btn-export" class="btn btn-primary" title="导出静态 HTML 报告">导出</button>
         <button id="btn-history" class="btn" title="历史快照，可还原任意版本">历史</button>
     </header>
+    <nav class="tab-bar" id="tab-bar">
+        <button class="tab-btn" data-tab="heatmap" type="button">
+            <span class="tab-icon">▦</span>
+            <span class="tab-label">评估热力图</span>
+        </button>
+        <button class="tab-btn" data-tab="dashboard" type="button">
+            <span class="tab-icon">◈</span>
+            <span class="tab-label">分析仪表盘</span>
+        </button>
+    </nav>
     <main class="stage">
-        <section class="panel panel-heatmap">
-            <header class="panel-head">
-                <h2>能力评估热力图</h2>
-                <span class="panel-hint">单击查看等级说明 · 双击编辑等级与机构描述</span>
-            </header>
-            <div class="heatmap" id="heatmap"></div>
-        </section>
-        <section class="panel panel-ref" id="panel-ref">
-            <button class="panel-ref-close" id="panel-ref-close" title="关闭（ESC）" aria-label="关闭等级说明">×</button>
-            <header class="panel-head">
-                <h2>等级说明 <span class="ref-subname" id="ref-sub-name">（请选择上方格子）</span></h2>
-                <span class="panel-hint">"—" 表示沿用低一等级要求</span>
-            </header>
-            <div class="ref-grid" id="ref-grid"></div>
-        </section>
+        <div class="pane pane-heatmap" data-pane="heatmap">
+            <section class="panel panel-heatmap">
+                <header class="panel-head">
+                    <h2>能力评估热力图</h2>
+                    <span class="panel-hint">单击查看等级说明 · 双击编辑等级与机构描述</span>
+                </header>
+                <div class="heatmap" id="heatmap"></div>
+            </section>
+            <section class="panel panel-ref" id="panel-ref">
+                <button class="panel-ref-close" id="panel-ref-close" title="关闭（ESC）" aria-label="关闭等级说明">×</button>
+                <header class="panel-head">
+                    <h2>等级说明 <span class="ref-subname" id="ref-sub-name">（请选择上方格子）</span></h2>
+                    <span class="panel-hint">"—" 表示沿用低一等级要求</span>
+                </header>
+                <div class="ref-grid" id="ref-grid"></div>
+            </section>
+        </div>
+        <div class="pane pane-dashboard" data-pane="dashboard">
+            <section class="panel panel-dashboard">
+                <header class="panel-head">
+                    <h2>分析仪表盘</h2>
+                    <span class="panel-hint">基于已评估数据聚合 · 仅参考</span>
+                </header>
+                <div class="dashboard" id="dashboard"></div>
+            </section>
+        </div>
     </main>
     <div id="modal-edit" class="modal-overlay">
         <div class="modal modal-wide">
@@ -149,6 +170,7 @@ func exportHTML() (string, error) {
 	// 注入 READ_ONLY 标志 + 初始数据
 	fmt.Fprintf(&b, "<script>\n")
 	fmt.Fprintf(&b, "window.__READ_ONLY__ = true;\n")
+	fmt.Fprintf(&b, "window.__DEFAULT_TAB__ = 'dashboard';\n")
 	fmt.Fprintf(&b, "window.__INITIAL_STANDARDS__ = %s;\n", stdsJSON)
 	fmt.Fprintf(&b, "window.__INITIAL_ASSESSMENT__ = %s;\n", asmJSON)
 	fmt.Fprintf(&b, "window.__EXPORTED_AT__ = '%s';\n", exportedAt.Format("2006-01-02 15:04:05"))

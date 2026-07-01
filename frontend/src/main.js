@@ -73,6 +73,14 @@ async function init() {
         bindThemeSwitcher();
     }
     bindFloatingPanel();
+    bindTabBar();
+
+    // 默认 tab：app = heatmap（用户在工作），export HTML = dashboard（评审看摘要）
+    const defaultTab = window.__DEFAULT_TAB__ || (READ_ONLY ? 'dashboard' : 'heatmap');
+    switchTab(defaultTab, { skipRender: true });
+
+    // 仪表盘首次渲染（无论默认 tab 是哪个，都先算好数据）
+    renderDashboard();
 
     // 默认选中第一个子域的"组织建设"（同时显示浮动面板）
     const firstDom = state.standards.domains[0];
@@ -1090,6 +1098,331 @@ function toast(msg) {
     el.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ============================================================
+// Tab system (heatmap vs dashboard)
+// ============================================================
+function bindTabBar() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+}
+
+function switchTab(tabId, opts = {}) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tabId);
+    });
+    document.querySelectorAll('.pane').forEach(p => {
+        p.classList.toggle('active', p.dataset.pane === tabId);
+    });
+    // 切到仪表盘 → 关掉浮动面板（仪表盘不需要 ref-grid）
+    if (tabId === 'dashboard' && typeof hideFloatingPanel === 'function') {
+        hideFloatingPanel();
+        if (typeof hideBubble === 'function') hideBubble();
+    }
+    if (!opts.skipRender && tabId === 'dashboard' && typeof renderDashboard === 'function') {
+        renderDashboard();
+    }
+}
+
+// ============================================================
+// Analytics Dashboard
+// ============================================================
+
+// 等级 → CSS 变量名（与 style.css --lv0-bg..--lv5-bg 一致）
+function lvColor(level) {
+    return `var(--lv${level}-bg)`;
+}
+function lvFgColor(level) {
+    return `var(--lv${level}-fg)`;
+}
+
+// computeDashboard: 纯函数。从 state.assessment.cells 派生所有指标
+function computeDashboard(state) {
+    const dims = state.dimensions;
+    const cells = state.assessment.cells || {};
+
+    // 1) 4 维度评分：每维度所有 sub 的等级平均（Lv0 也算入，会拉低分数）
+    const dimScores = {};
+    for (const dim of dims) {
+        let sum = 0, n = 0;
+        for (const dom of state.standards.domains) {
+            for (const sub of dom.subdomains) {
+                const lvl = cells[sub.id]?.[dim]?.level || 0;
+                sum += lvl; n++;
+            }
+        }
+        dimScores[dim] = n > 0 ? sum / n : 0;
+    }
+    // 整体 = 4 维度平均
+    const dimVals = Object.values(dimScores);
+    const overall = dimVals.length > 0
+        ? dimVals.reduce((a, b) => a + b, 0) / dimVals.length
+        : 0;
+
+    // 2) 4 大能力域评分：每域所有 sub 所有维度等级平均
+    const domainScores = {};
+    for (const dom of state.standards.domains) {
+        let sum = 0, n = 0;
+        for (const sub of dom.subdomains) {
+            for (const dim of dims) {
+                const lvl = cells[sub.id]?.[dim]?.level || 0;
+                sum += lvl; n++;
+            }
+        }
+        domainScores[dom.id] = {
+            name: dom.name,
+            score: n > 0 ? sum / n : 0,
+            subCount: dom.subdomains.length
+        };
+    }
+
+    // 3) 覆盖率 + 等级分布
+    const total = state.standards.domains.reduce((s, d) => s + d.subdomains.length, 0) * dims.length;
+    let filled = 0;
+    const distribution = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const dom of state.standards.domains) {
+        for (const sub of dom.subdomains) {
+            for (const dim of dims) {
+                const lvl = cells[sub.id]?.[dim]?.level || 0;
+                distribution[lvl]++;
+                if (lvl >= 1) filled++;
+            }
+        }
+    }
+    const coverage = { filled, total, pct: total > 0 ? filled / total : 0 };
+
+    // 4) TOP 5 强项 / BOTTOM 5 弱项（Lv0 不算"弱项"，算"未评估"）
+    const all = [];
+    for (const dom of state.standards.domains) {
+        for (const sub of dom.subdomains) {
+            for (const dim of dims) {
+                const lvl = cells[sub.id]?.[dim]?.level || 0;
+                all.push({ subId: sub.id, subName: sub.name, domainName: dom.name, dim, level: lvl });
+            }
+        }
+    }
+    const top5 = [...all].filter(x => x.level >= 1).sort((a, b) => b.level - a.level || a.subName.localeCompare(b.subName)).slice(0, 5);
+    const bottom5 = [...all].filter(x => x.level >= 1).sort((a, b) => a.level - b.level || a.subName.localeCompare(b.subName)).slice(0, 5);
+    const unassessed = all.filter(x => x.level === 0).length;
+
+    return { overall, coverage, dimScores, domainScores, distribution, top5, bottom5, unassessed, dims };
+}
+
+// renderDashboard: 渲染到 #dashboard
+function renderDashboard() {
+    const root = document.getElementById('dashboard');
+    if (!root) return;
+
+    const d = computeDashboard(state);
+
+    // 全部空状态
+    if (d.coverage.filled === 0) {
+        root.innerHTML = `
+            <div class="dash-empty">
+                <div class="dash-empty-icon">▦</div>
+                还没有任何评估数据。<br>
+                <span style="opacity:.7">回到「评估热力图」开始填写等级，仪表盘会自动更新。</span>
+            </div>`;
+        return;
+    }
+
+    const overallPct = (d.overall / 5) * 100;
+    const dims = d.dims;
+    const fmt = v => v.toFixed(2);
+
+    root.innerHTML = `
+        <!-- Overview card: 整体评分 + 覆盖率 + 维度评分明细 -->
+        <div class="dash-card dash-overview">
+            <div class="dash-overview-ring">
+                <svg viewBox="0 0 160 160">
+                    <circle cx="80" cy="80" r="68" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+                    <circle cx="80" cy="80" r="68" fill="none" stroke="var(--accent)" stroke-width="10"
+                        stroke-linecap="round"
+                        stroke-dasharray="${(overallPct/100 * 2 * Math.PI * 68).toFixed(2)} ${(2 * Math.PI * 68).toFixed(2)}"
+                        transform="rotate(-90 80 80)"
+                        style="filter: drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 60%, transparent));"/>
+                </svg>
+                <div class="dash-overview-ring-text">
+                    <div class="dash-overview-score">${fmt(d.overall)}</div>
+                    <div class="dash-overview-max">/ 5.0</div>
+                </div>
+            </div>
+            <div class="dash-overview-stats">
+                <div class="dash-overview-stat">
+                    <div class="dash-overview-stat-value">${d.coverage.filled} / ${d.coverage.total}</div>
+                    <div class="dash-overview-stat-label">覆盖率 · ${(d.coverage.pct * 100).toFixed(0)}%</div>
+                </div>
+                ${dims.map(dim => `
+                <div class="dash-overview-stat">
+                    <div class="dash-overview-stat-value">${fmt(d.dimScores[dim])}</div>
+                    <div class="dash-overview-stat-label">${dim}</div>
+                </div>
+                `).join('')}
+            </div>
+        </div>
+
+        <!-- Radar: 4 维度分布 -->
+        <div class="dash-card dash-radar">
+            <div class="dash-card-title">4 维度分布（雷达图）</div>
+            ${renderRadarSvg(d.dimScores, dims)}
+        </div>
+
+        <!-- Bars: 4 能力域得分 -->
+        <div class="dash-card dash-bars">
+            <div class="dash-card-title">4 能力域得分</div>
+            ${Object.entries(d.domainScores).map(([id, info]) => {
+                const lvl = Math.round(info.score);
+                return `
+                <div class="dash-bar-row">
+                    <div class="dash-bar-label">${info.name}</div>
+                    <div class="dash-bar-track">
+                        <div class="dash-bar-fill" style="width:${(info.score/5*100).toFixed(1)}%; --fill: ${lvColor(lvl)}; background: ${lvColor(lvl)};"></div>
+                    </div>
+                    <div class="dash-bar-value">${fmt(info.score)}</div>
+                </div>`;
+            }).join('')}
+        </div>
+
+        <!-- Distribution pie + Extremes lists -->
+        ${renderPieCard(d.distribution, d.coverage.total)}
+        ${renderExtremesCard(d)}
+    `;
+}
+
+// 4 维度雷达图（手写 SVG）
+function renderRadarSvg(dimScores, dims) {
+    const cx = 120, cy = 120, r = 90;
+    const n = dims.length;
+    // 网格层（5 个嵌套五边形/四边形）
+    const grids = [1, 2, 3, 4, 5].map(level => {
+        const pts = dims.map((_, i) => {
+            const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+            const rr = (level / 5) * r;
+            return `${(cx + rr * Math.cos(a)).toFixed(1)},${(cy + rr * Math.sin(a)).toFixed(1)}`;
+        }).join(' ');
+        return `<polygon class="dash-radar-grid" points="${pts}"/>`;
+    }).join('');
+    // 轴线
+    const axes = dims.map((_, i) => {
+        const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+        return `<line class="dash-radar-axis" x1="${cx}" y1="${cy}" x2="${(cx + r * Math.cos(a)).toFixed(1)}" y2="${(cy + r * Math.sin(a)).toFixed(1)}"/>`;
+    }).join('');
+    // 数据多边形
+    const dataPts = dims.map((dim, i) => {
+        const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+        const v = (dimScores[dim] || 0) / 5;
+        const rr = v * r;
+        return { x: cx + rr * Math.cos(a), y: cy + rr * Math.sin(a) };
+    });
+    const dataPath = dataPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const dataDots = dataPts.map(p => `<circle class="dash-radar-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5"/>`).join('');
+    // 标签
+    const labels = dims.map((dim, i) => {
+        const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+        const lr = r + 18;
+        const x = cx + lr * Math.cos(a);
+        const y = cy + lr * Math.sin(a) + 4;
+        return `<text class="dash-radar-axis-label" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${dim}</text>`;
+    }).join('');
+    return `
+        <svg viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">
+            ${grids}
+            ${axes}
+            <polygon class="dash-radar-shape" points="${dataPath}"/>
+            ${dataDots}
+            ${labels}
+        </svg>
+    `;
+}
+
+// 等级分布饼图（手写 SVG arc）+ 图例
+function renderPieCard(dist, total) {
+    // SVG 弧路径：M cx,cy L x1,y1 A r,r 0 large 1 x2,y2 Z
+    const cx = 80, cy = 80, r = 60;
+    let cumAngle = -Math.PI / 2; // 从正上方开始
+    const segs = [];
+    const lvMeta = [
+        { lv: 0, label: '未评估' },
+        { lv: 1, label: 'Lv1' },
+        { lv: 2, label: 'Lv2' },
+        { lv: 3, label: 'Lv3' },
+        { lv: 4, label: 'Lv4' },
+        { lv: 5, label: 'Lv5' }
+    ];
+    for (const { lv } of lvMeta) {
+        const n = dist[lv] || 0;
+        if (n === 0) continue;
+        const angle = (n / total) * 2 * Math.PI;
+        const next = cumAngle + angle;
+        const x1 = cx + r * Math.cos(cumAngle);
+        const y1 = cy + r * Math.sin(cumAngle);
+        const x2 = cx + r * Math.cos(next);
+        const y2 = cy + r * Math.sin(next);
+        const large = angle > Math.PI ? 1 : 0;
+        const d = `M ${cx},${cy} L ${x1.toFixed(2)},${y1.toFixed(2)} A ${r},${r} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;
+        segs.push(`<path d="${d}" fill="${lvColor(lv)}" stroke="var(--surface-lo)" stroke-width="1.5"/>`);
+        cumAngle = next;
+    }
+    // 中央数字（已评估总数）
+    const legend = lvMeta.map(({ lv, label }) => {
+        const n = dist[lv] || 0;
+        if (lv >= 1 && n === 0) return '';
+        const pct = total > 0 ? (n / total * 100).toFixed(0) : 0;
+        return `
+            <div class="dash-pie-legend-row">
+                <div class="dash-pie-legend-swatch" style="background:${lvColor(lv)};"></div>
+                <div class="dash-pie-legend-label">${label}</div>
+                <div class="dash-pie-legend-count">${n}</div>
+                <div class="dash-pie-legend-pct">${pct}%</div>
+            </div>`;
+    }).join('');
+    return `
+        <div class="dash-card">
+            <div class="dash-card-title">等级分布</div>
+            <div class="dash-pie">
+                <svg viewBox="0 0 160 160" preserveAspectRatio="xMidYMid meet">
+                    ${segs.join('')}
+                    <circle cx="${cx}" cy="${cy}" r="32" fill="var(--surface-lo)"/>
+                    <text x="${cx}" y="${cy + 2}" text-anchor="middle" fill="var(--text)" font-size="18" font-weight="700">${total - (dist[0] || 0)}</text>
+                    <text x="${cx}" y="${cy + 16}" text-anchor="middle" fill="var(--text-dim)" font-size="9">已评估</text>
+                </svg>
+                <div class="dash-pie-legend">${legend}</div>
+            </div>
+        </div>
+    `;
+}
+
+// TOP 5 / BOTTOM 5 列表
+function renderExtremesCard(d) {
+    const rowHtml = (item, rank) => `
+        <div class="dash-extreme-row">
+            <div class="dash-extreme-rank">${rank}</div>
+            <div>
+                <span class="dash-extreme-name">${item.subName}</span>
+                <span class="dash-extreme-dim">· ${item.dim}</span>
+            </div>
+            <div class="dash-extreme-level" style="--lv-bg:${lvColor(item.level)}; --lv-fg:${lvFgColor(item.level)}; background:${lvColor(item.level)}; color:${lvFgColor(item.level)};">${item.level || '—'}</div>
+        </div>`;
+    const topHtml = d.top5.length > 0
+        ? d.top5.map((x, i) => rowHtml(x, i + 1)).join('')
+        : `<div class="dash-empty-card">暂无评估数据</div>`;
+    const bottomHtml = d.bottom5.length > 0
+        ? d.bottom5.map((x, i) => rowHtml(x, i + 1)).join('')
+        : `<div class="dash-empty-card">全部 ≥ Lv1 后会显示最弱 5 项</div>`;
+    return `
+        <div class="dash-extremes">
+            <div class="dash-card dash-extreme-col">
+                <div class="dash-card-title" style="color: color-mix(in oklab, var(--lv4-bg) 70%, var(--text))">▴ TOP 5 强项</div>
+                ${topHtml}
+            </div>
+            <div class="dash-card dash-extreme-col">
+                <div class="dash-card-title" style="color: color-mix(in oklab, var(--lv1-bg) 70%, var(--text))">▾ BOTTOM 5 弱项</div>
+                ${bottomHtml}
+            </div>
+        </div>
+    `;
 }
 
 // ============================================================

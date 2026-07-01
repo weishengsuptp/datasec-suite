@@ -320,6 +320,61 @@ body {
     min-height: 0;
 }
 
+/* ============================================================
+   Tab bar (heatmap vs dashboard)
+   ============================================================ */
+.tab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 0 18px;
+    background: rgba(20, 20, 26, 0.6);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    flex-shrink: 0;
+}
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 10px 18px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all .15s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+.tab-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+}
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+.tab-icon {
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+/* ============================================================
+   Pane system (only one pane visible at a time)
+   ============================================================ */
+.pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+.pane:not(.active) {
+    display: none !important;
+}
+
 .panel {
     background: var(--surface-lo);
     border: 1px solid var(--border);
@@ -331,6 +386,13 @@ body {
     overflow: hidden;
 }
 .panel-heatmap { flex: 1; min-height: 0; }
+
+.panel-dashboard {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
 
 /* 等级说明表改为浮动面板：默认隐藏，selectCell 后从底部 slide-up */
 .panel-ref {
@@ -1306,4 +1368,243 @@ textarea:focus {
 @media (max-width: 1100px) {
     .heatmap { grid-template-columns: 130px repeat(4, minmax(56px, 1fr)); }
     .ref-grid { grid-template-columns: 44px repeat(4, minmax(110px, 1fr)); }
+}
+
+/* ============================================================
+   Analytics Dashboard
+   ============================================================ */
+.dashboard {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 16px;
+}
+.dash-empty {
+    grid-column: 1 / -1;
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    line-height: 1.6;
+}
+.dash-empty .dash-empty-icon {
+    font-size: 36px;
+    opacity: 0.4;
+    margin-bottom: 12px;
+}
+
+.dash-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    overflow: hidden;
+}
+.dash-card-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+/* ---- Overview card (overall score + coverage + progress ring) ---- */
+.dash-overview {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    align-items: center;
+    padding: 20px 24px;
+}
+.dash-overview-ring {
+    position: relative;
+    width: 160px;
+    height: 160px;
+}
+.dash-overview-ring svg { width: 100%; height: 100%; }
+.dash-overview-ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.dash-overview-score {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: -1px;
+}
+.dash-overview-max {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+.dash-overview-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+.dash-overview-stat {
+    border-left: 2px solid var(--accent);
+    padding-left: 12px;
+}
+.dash-overview-stat-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+}
+.dash-overview-stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.4px;
+}
+
+/* ---- Radar chart ---- */
+.dash-radar { display: flex; justify-content: center; align-items: center; }
+.dash-radar svg { width: 240px; height: 240px; }
+.dash-radar-axis-label {
+    font-size: 11px;
+    fill: var(--text-dim);
+    font-weight: 500;
+}
+.dash-radar-grid { stroke: var(--border); stroke-width: 1; fill: none; }
+.dash-radar-axis { stroke: var(--border-hi); stroke-width: 1; }
+.dash-radar-shape {
+    fill: color-mix(in oklab, var(--accent) 25%, transparent);
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+.dash-radar-dot { fill: var(--accent); }
+
+/* ---- Bar chart (domain scores) ---- */
+.dash-bars { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.dash-bar-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 38px;
+    gap: 10px;
+    align-items: center;
+}
+.dash-bar-label {
+    font-size: 12px;
+    color: var(--text);
+    text-align: right;
+}
+.dash-bar-track {
+    height: 22px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.dash-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .4s var(--ease);
+    box-shadow: 0 0 8px color-mix(in oklab, var(--fill) 40%, transparent);
+}
+.dash-bar-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Distribution pie chart ---- */
+.dash-pie {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+.dash-pie svg { width: 160px; height: 160px; flex-shrink: 0; }
+.dash-pie-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+.dash-pie-legend-row {
+    display: grid;
+    grid-template-columns: 12px 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 11.5px;
+}
+.dash-pie-legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+.dash-pie-legend-label { color: var(--text); }
+.dash-pie-legend-count { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.dash-pie-legend-pct { color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+
+/* ---- Extremes lists (top 5 / bottom 5) ---- */
+.dash-extremes {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.dash-extreme-col { }
+.dash-extreme-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.dash-extreme-row:hover { background: rgba(255, 255, 255, 0.03); }
+.dash-extreme-rank {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+}
+.dash-extreme-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-extreme-dim { color: var(--text-dim); font-size: 10.5px; margin-left: 4px; }
+.dash-extreme-level {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--lv-fg);
+    background: var(--lv-bg);
+    font-variant-numeric: tabular-nums;
+}
+.dash-empty-card {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 20px 0;
+    line-height: 1.6;
+}
+
+/* Responsive: dashboard collapses to single column on narrow screens */
+@media (max-width: 900px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .dash-overview { grid-template-columns: 1fr; }
+    .dash-extremes { grid-template-columns: 1fr; }
 }

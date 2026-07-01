@@ -33,31 +33,60 @@
         <button id="btn-history" class="btn" title="历史快照，可还原任意版本">历史</button>
     </header>
 
-    <!-- ===== Main content: heatmap + reference in one viewport ===== -->
+    <!-- ===== Tab bar (heatmap vs dashboard) ===== -->
+    <nav class="tab-bar" id="tab-bar">
+        <button class="tab-btn active" data-tab="heatmap" type="button">
+            <span class="tab-icon">▦</span>
+            <span class="tab-label">评估热力图</span>
+        </button>
+        <button class="tab-btn" data-tab="dashboard" type="button">
+            <span class="tab-icon">◈</span>
+            <span class="tab-label">分析仪表盘</span>
+        </button>
+    </nav>
+
+    <!-- ===== Main content: two panes (heatmap + dashboard), shown one at a time ===== -->
     <main class="stage">
 
-        <!-- Heatmap -->
-        <section class="panel panel-heatmap">
-            <header class="panel-head">
-                <h2>能力评估热力图</h2>
-                <span class="panel-hint">单击查看等级说明 · 双击编辑等级与机构描述</span>
-            </header>
-            <div class="heatmap" id="heatmap">
-                <!-- JS-generated grid -->
-            </div>
-        </section>
+        <!-- ===== Pane 1: Heatmap + reference panel ===== -->
+        <div class="pane pane-heatmap active" data-pane="heatmap">
 
-        <!-- Reference (floating panel, shown on selectCell) -->
-        <section class="panel panel-ref" id="panel-ref">
-            <button class="panel-ref-close" id="panel-ref-close" title="关闭（ESC）" aria-label="关闭等级说明">×</button>
-            <header class="panel-head">
-                <h2>等级说明 <span class="ref-subname" id="ref-sub-name">（请选择上方格子）</span></h2>
-                <span class="panel-hint">"—" 表示沿用低一等级要求</span>
-            </header>
-            <div class="ref-grid" id="ref-grid">
-                <!-- JS-generated grid -->
-            </div>
-        </section>
+            <!-- Heatmap -->
+            <section class="panel panel-heatmap">
+                <header class="panel-head">
+                    <h2>能力评估热力图</h2>
+                    <span class="panel-hint">单击查看等级说明 · 双击编辑等级与机构描述</span>
+                </header>
+                <div class="heatmap" id="heatmap">
+                    <!-- JS-generated grid -->
+                </div>
+            </section>
+
+            <!-- Reference (floating panel, shown on selectCell) -->
+            <section class="panel panel-ref" id="panel-ref">
+                <button class="panel-ref-close" id="panel-ref-close" title="关闭（ESC）" aria-label="关闭等级说明">×</button>
+                <header class="panel-head">
+                    <h2>等级说明 <span class="ref-subname" id="ref-sub-name">（请选择上方格子）</span></h2>
+                    <span class="panel-hint">"—" 表示沿用低一等级要求</span>
+                </header>
+                <div class="ref-grid" id="ref-grid">
+                    <!-- JS-generated grid -->
+                </div>
+            </section>
+        </div>
+
+        <!-- ===== Pane 2: Analytics dashboard ===== -->
+        <div class="pane pane-dashboard" data-pane="dashboard">
+            <section class="panel panel-dashboard">
+                <header class="panel-head">
+                    <h2>分析仪表盘</h2>
+                    <span class="panel-hint">基于已评估数据聚合 · 仅参考</span>
+                </header>
+                <div class="dashboard" id="dashboard">
+                    <!-- JS-generated dashboard content (renderDashboard) -->
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- ===== Modal: combined edit (level + note) ===== -->
