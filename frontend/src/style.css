@@ -1379,8 +1379,8 @@ textarea:focus {
     overflow-y: auto;
     padding: 18px 20px 24px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
     gap: 16px;
 }
 .dash-empty {
@@ -1404,7 +1404,6 @@ textarea:focus {
     padding: 16px 18px;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    overflow: hidden;
 }
 .dash-card-title {
     font-size: 11.5px;
@@ -1419,15 +1418,16 @@ textarea:focus {
 .dash-overview {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 24px;
-    align-items: center;
-    padding: 20px 24px;
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: 28px;
+    align-items: stretch;
+    padding: 22px 26px;
 }
 .dash-overview-ring {
     position: relative;
     width: 160px;
     height: 160px;
+    align-self: center;
 }
 .dash-overview-ring svg { width: 100%; height: 100%; }
 .dash-overview-ring-text {
@@ -1439,7 +1439,7 @@ textarea:focus {
     justify-content: center;
 }
 .dash-overview-score {
-    font-size: 42px;
+    font-size: 40px;
     font-weight: 700;
     color: var(--accent);
     line-height: 1;
@@ -1452,32 +1452,40 @@ textarea:focus {
 }
 .dash-overview-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    align-self: center;
 }
 .dash-overview-stat {
     border-left: 2px solid var(--accent);
-    padding-left: 12px;
+    padding-left: 10px;
+    min-width: 0;
 }
 .dash-overview-stat-value {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 600;
     color: var(--text);
-    line-height: 1;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .dash-overview-stat-label {
-    font-size: 11px;
-    color: var(--text-dim);
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.62);
     margin-top: 4px;
     letter-spacing: 0.4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ---- Radar chart ---- */
-.dash-radar { display: flex; justify-content: center; align-items: center; }
-.dash-radar svg { width: 240px; height: 240px; }
+.dash-radar { display: flex; justify-content: center; align-items: center; min-height: 260px; }
+.dash-radar svg { width: 100%; max-width: 320px; height: auto; aspect-ratio: 1.2 / 1; }
 .dash-radar-axis-label {
     font-size: 11px;
-    fill: var(--text-dim);
+    fill: rgba(255, 255, 255, 0.7);
     font-weight: 500;
 }
 .dash-radar-grid { stroke: var(--border); stroke-width: 1; fill: none; }
@@ -1491,36 +1499,40 @@ textarea:focus {
 .dash-radar-dot { fill: var(--accent); }
 
 /* ---- Bar chart (domain scores) ---- */
-.dash-bars { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.dash-bars { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
 .dash-bar-row {
     display: grid;
-    grid-template-columns: 80px 1fr 38px;
-    gap: 10px;
+    grid-template-columns: 120px minmax(0, 1fr) 40px;
+    gap: 12px;
     align-items: center;
 }
 .dash-bar-label {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text);
-    text-align: right;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .dash-bar-track {
-    height: 22px;
+    height: 24px;
     background: rgba(255, 255, 255, 0.04);
-    border-radius: 4px;
+    border-radius: 5px;
     overflow: hidden;
     position: relative;
 }
 .dash-bar-fill {
     height: 100%;
-    border-radius: 4px;
+    border-radius: 5px;
     transition: width .4s var(--ease);
     box-shadow: 0 0 8px color-mix(in oklab, var(--fill) 40%, transparent);
 }
 .dash-bar-value {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--text);
     font-variant-numeric: tabular-nums;
+    text-align: right;
 }
 
 /* ---- Distribution pie chart ---- */
@@ -1554,11 +1566,20 @@ textarea:focus {
 .dash-pie-legend-pct { color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
 
 /* ---- Extremes lists (top 5 / bottom 5) ---- */
+.dash-extremes-wrap { /* outer card wrapping both columns */ }
 .dash-extremes {
-    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 14px;
+}
+.dash-extreme-col-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
 }
 .dash-extreme-col { }
 .dash-extreme-row {

@@ -1263,20 +1263,23 @@ function renderDashboard() {
             </div>
         </div>
 
-        <!-- Radar: 4 维度分布 -->
+        <!-- Radar: 4 维度分布 (col 1, row 2) -->
         <div class="dash-card dash-radar">
             <div class="dash-card-title">4 维度分布（雷达图）</div>
             ${renderRadarSvg(d.dimScores, dims)}
         </div>
 
-        <!-- Bars: 4 能力域得分 -->
+        <!-- Distribution pie (col 2, row 2) -->
+        ${renderPieCard(d.distribution, d.coverage.total)}
+
+        <!-- Bars: 4 能力域得分 (col 1, row 3) -->
         <div class="dash-card dash-bars">
             <div class="dash-card-title">4 能力域得分</div>
             ${Object.entries(d.domainScores).map(([id, info]) => {
                 const lvl = Math.round(info.score);
                 return `
                 <div class="dash-bar-row">
-                    <div class="dash-bar-label">${info.name}</div>
+                    <div class="dash-bar-label" title="${info.name}">${info.name}</div>
                     <div class="dash-bar-track">
                         <div class="dash-bar-fill" style="width:${(info.score/5*100).toFixed(1)}%; --fill: ${lvColor(lvl)}; background: ${lvColor(lvl)};"></div>
                     </div>
@@ -1285,17 +1288,16 @@ function renderDashboard() {
             }).join('')}
         </div>
 
-        <!-- Distribution pie + Extremes lists -->
-        ${renderPieCard(d.distribution, d.coverage.total)}
+        <!-- TOP/BOTTOM (col 2, row 3) -->
         ${renderExtremesCard(d)}
     `;
 }
 
 // 4 维度雷达图（手写 SVG）
 function renderRadarSvg(dimScores, dims) {
-    const cx = 120, cy = 120, r = 90;
+    const cx = 160, cy = 130, r = 90;
     const n = dims.length;
-    // 网格层（5 个嵌套五边形/四边形）
+    // 网格层（5 个嵌套四边形）
     const grids = [1, 2, 3, 4, 5].map(level => {
         const pts = dims.map((_, i) => {
             const a = (i / n) * 2 * Math.PI - Math.PI / 2;
@@ -1318,16 +1320,16 @@ function renderRadarSvg(dimScores, dims) {
     });
     const dataPath = dataPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
     const dataDots = dataPts.map(p => `<circle class="dash-radar-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5"/>`).join('');
-    // 标签
+    // 标签 — 留更多余量避免被裁
     const labels = dims.map((dim, i) => {
         const a = (i / n) * 2 * Math.PI - Math.PI / 2;
-        const lr = r + 18;
+        const lr = r + 22;
         const x = cx + lr * Math.cos(a);
         const y = cy + lr * Math.sin(a) + 4;
         return `<text class="dash-radar-axis-label" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${dim}</text>`;
     }).join('');
     return `
-        <svg viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 320 260" preserveAspectRatio="xMidYMid meet">
             ${grids}
             ${axes}
             <polygon class="dash-radar-shape" points="${dataPath}"/>
@@ -1412,14 +1414,17 @@ function renderExtremesCard(d) {
         ? d.bottom5.map((x, i) => rowHtml(x, i + 1)).join('')
         : `<div class="dash-empty-card">全部 ≥ Lv1 后会显示最弱 5 项</div>`;
     return `
-        <div class="dash-extremes">
-            <div class="dash-card dash-extreme-col">
-                <div class="dash-card-title" style="color: color-mix(in oklab, var(--lv4-bg) 70%, var(--text))">▴ TOP 5 强项</div>
-                ${topHtml}
-            </div>
-            <div class="dash-card dash-extreme-col">
-                <div class="dash-card-title" style="color: color-mix(in oklab, var(--lv1-bg) 70%, var(--text))">▾ BOTTOM 5 弱项</div>
-                ${bottomHtml}
+        <div class="dash-card dash-extremes-wrap">
+            <div class="dash-card-title" style="margin-bottom: 8px;">TOP / BOTTOM 5</div>
+            <div class="dash-extremes">
+                <div class="dash-extreme-col">
+                    <div class="dash-extreme-col-title" style="color: color-mix(in oklab, var(--lv4-bg) 80%, var(--text))">▴ 强项</div>
+                    ${topHtml}
+                </div>
+                <div class="dash-extreme-col">
+                    <div class="dash-extreme-col-title" style="color: color-mix(in oklab, var(--lv1-bg) 80%, var(--text))">▾ 弱项</div>
+                    ${bottomHtml}
+                </div>
             </div>
         </div>
     `;
