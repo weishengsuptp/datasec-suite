@@ -40,13 +40,15 @@ func stripImports(src string) string {
 // no save, no dblclick-into-edit, no edit button). Opens in any modern
 // browser with zero external dependencies.
 func exportHTML() (string, error) {
-	asm, err := loadAssessment()
+	// v0.2 多标准：导出当前激活的 standard（currentStandard + currentStandardID）
+	asm, err := loadAssessment(currentStandardID)
 	if err != nil {
 		return "", err
 	}
 
 	exportedAt := time.Now()
-	stdsJSON, err := json.Marshal(stdCache)
+	// 只导出当前 standard 的 standards（不导出全量 map）
+	stdsJSON, err := json.Marshal(currentStandard)
 	if err != nil {
 		return "", err
 	}
@@ -64,7 +66,7 @@ func exportHTML() (string, error) {
 	fmt.Fprintf(&b, "<meta charset=\"UTF-8\">\n")
 	fmt.Fprintf(&b, "<meta content=\"width=device-width, initial-scale=1.0\" name=\"viewport\">\n")
 	fmt.Fprintf(&b, "<title>数据安全能力评估报告 · %s</title>\n",
-		html.EscapeString(stdCache.Metadata.Standard))
+		html.EscapeString(currentStandard.Metadata.Standard))
 	b.WriteString("<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n")
 	b.WriteString("<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n")
 	b.WriteString(`<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">`)
@@ -79,6 +81,7 @@ func exportHTML() (string, error) {
             <span class="brand-title">数据安全能力评估</span>
             <span class="brand-sub" id="subtitle">JR/T 0358-2026</span>
         </div>
+        <div class="standard-switcher" id="standard-switcher"></div>
         <div class="toolbar-spacer"></div>
         <div class="progress" title="已评估 / 总格子（19 子域 × 4 维度）">
             <span class="progress-dot"></span>
@@ -159,6 +162,9 @@ func exportHTML() (string, error) {
         <span id="toast-msg"></span>
     </div>
 </div>
+
+<!-- 标准切换下拉：放在 body 末尾以脱离 .toolbar 的 backdrop-filter stacking context -->
+<div class="standard-menu" id="standard-menu" role="menu" hidden></div>
 `)
 
 	// 注入 READ_ONLY 标志 + 初始数据
@@ -166,6 +172,7 @@ func exportHTML() (string, error) {
 	fmt.Fprintf(&b, "window.__READ_ONLY__ = true;\n")
 	fmt.Fprintf(&b, "window.__DEFAULT_TAB__ = 'dashboard';\n")
 	fmt.Fprintf(&b, "window.__INITIAL_STANDARDS__ = %s;\n", stdsJSON)
+	fmt.Fprintf(&b, "window.__INITIAL_STANDARD_ID__ = %q;\n", currentStandardID)
 	fmt.Fprintf(&b, "window.__INITIAL_ASSESSMENT__ = %s;\n", asmJSON)
 	fmt.Fprintf(&b, "window.__EXPORTED_AT__ = '%s';\n", exportedAt.Format("2006-01-02 15:04:05"))
 	b.WriteString("</script>\n")

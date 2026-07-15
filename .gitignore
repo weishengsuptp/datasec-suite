@@ -7,10 +7,13 @@ frontend/node_modules/
 
 # ============================================================
 # Runtime user data (NEVER commit personal data)
+# v0.2 多标准：每个标准独立 .json，按 standard id 区分
 # ============================================================
 data/assessment.json
+data/assessment.*.json
 data/exports/
 data/history/
+data/.current
 
 # ============================================================
 # Test runners / debug binaries

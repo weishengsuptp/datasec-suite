@@ -4,16 +4,24 @@ import {main} from '../models';
 
 export function ExportHTML():Promise<string>;
 
+export function GetCurrentStandard():Promise<main.Standards>;
+
+export function GetCurrentStandardID():Promise<string>;
+
 export function GetDataDir():Promise<string>;
 
-export function GetStandards():Promise<main.Standards>;
+export function GetStandard(arg1:string):Promise<main.Standards>;
 
 export function ImportHTML():Promise<main.Assessment>;
 
-export function ListHistory():Promise<Array<main.HistoryEntry>>;
+export function ListHistory(arg1:string):Promise<Array<main.HistoryEntry>>;
 
-export function LoadAssessment():Promise<main.Assessment>;
+export function ListStandards():Promise<Array<main.StandardsMetadata>>;
 
-export function RestoreVersion(arg1:string):Promise<void>;
+export function LoadAssessment(arg1:string):Promise<main.Assessment>;
 
-export function SaveAssessment(arg1:main.Assessment):Promise<void>;
+export function RestoreVersion(arg1:string,arg2:string):Promise<void>;
+
+export function SaveAssessment(arg1:string,arg2:main.Assessment):Promise<void>;
+
+export function SetCurrentStandard(arg1:string):Promise<void>;

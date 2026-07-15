@@ -10,16 +10,20 @@ import (
 )
 
 // =====================================================================
-// Assessment loading / saving
+// Assessment loading / saving (per-standard isolation)
 // =====================================================================
 
-// loadAssessment reads the current assessment.json. If absent, returns an empty one.
-func loadAssessment() (Assessment, error) {
-	path := assessmentPath()
+// loadAssessment reads the current assessment.<id>.json. If absent, returns
+// an empty one tagged with the given standard id.
+func loadAssessment(id string) (Assessment, error) {
+	if id == "" {
+		return Assessment{}, fmt.Errorf("standard id required")
+	}
+	path := assessmentPath(id)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return newEmptyAssessment(), nil
+			return newEmptyAssessment(id), nil
 		}
 		return Assessment{}, fmt.Errorf("read assessment: %w", err)
 	}
@@ -27,18 +31,28 @@ func loadAssessment() (Assessment, error) {
 	if err := json.Unmarshal(raw, &a); err != nil {
 		return Assessment{}, fmt.Errorf("parse assessment: %w", err)
 	}
+	// 防御：旧 v0.1 文件没 standard_id 字段，按调用方传入的 id 补齐
+	if a.StandardID == "" {
+		a.StandardID = id
+	}
 	if a.Cells == nil {
 		a.Cells = map[string]map[string]Cell{}
 	}
 	return a, nil
 }
 
-// saveAssessment writes assessment.json. Before overwriting, snapshots the
-// existing file into history/ (so users can always roll back).
-func saveAssessment(a Assessment) error {
+// saveAssessment writes assessment.<id>.json. Before overwriting, snapshots
+// the existing file into history/<id>/ (so users can always roll back).
+func saveAssessment(id string, a Assessment) error {
+	if id == "" {
+		return fmt.Errorf("standard id required")
+	}
+	// 强制覆盖 standard_id 字段（防止前端误传别的 id）
+	a.StandardID = id
+
 	// 1. snapshot current (if exists) BEFORE overwriting
-	if cur, err := os.ReadFile(assessmentPath()); err == nil && len(cur) > 0 {
-		if err := writeHistorySnapshot(cur); err != nil {
+	if cur, err := os.ReadFile(assessmentPath(id)); err == nil && len(cur) > 0 {
+		if err := writeHistorySnapshot(id, cur); err != nil {
 			return fmt.Errorf("snapshot: %w", err)
 		}
 	}
@@ -50,36 +64,43 @@ func saveAssessment(a Assessment) error {
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
-	if err := os.WriteFile(assessmentPath(), raw, 0o644); err != nil {
+	if err := os.WriteFile(assessmentPath(id), raw, 0o644); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
 	return nil
 }
 
 // newEmptyAssessment returns an Assessment with no cells filled in.
-func newEmptyAssessment() Assessment {
+func newEmptyAssessment(id string) Assessment {
 	return Assessment{
-		Version:   0,
-		UpdatedAt: "",
-		Cells:     map[string]map[string]Cell{},
+		StandardID: id,
+		Version:    0,
+		UpdatedAt:  "",
+		Cells:      map[string]map[string]Cell{},
 	}
 }
 
 // =====================================================================
-// History snapshots
+// History snapshots (per-standard isolation)
 // =====================================================================
 
-func writeHistorySnapshot(raw []byte) error {
+func writeHistorySnapshot(id string, raw []byte) error {
 	ts := time.Now().Format("20060102-150405")
 	name := ts + ".json"
-	path := filepath.Join(historyDir(), name)
+	path := filepath.Join(historyDir(id), name)
 	return os.WriteFile(path, raw, 0o644)
 }
 
-// listHistory returns snapshots newest first.
-func listHistory() ([]HistoryEntry, error) {
-	entries, err := os.ReadDir(historyDir())
+// listHistory returns snapshots for the given standard, newest first.
+func listHistory(id string) ([]HistoryEntry, error) {
+	if id == "" {
+		return nil, fmt.Errorf("standard id required")
+	}
+	entries, err := os.ReadDir(historyDir(id))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return []HistoryEntry{}, nil
+		}
 		return nil, fmt.Errorf("read history dir: %w", err)
 	}
 	var out []HistoryEntry
@@ -97,7 +118,7 @@ func listHistory() ([]HistoryEntry, error) {
 		ts := e.Name()[:len(e.Name())-len(".json")]
 		out = append(out, HistoryEntry{
 			Timestamp: ts,
-			Path:      filepath.Join(historyDir(), e.Name()),
+			Path:      filepath.Join(historyDir(id), e.Name()),
 			SizeBytes: info.Size(),
 		})
 	}
@@ -107,19 +128,23 @@ func listHistory() ([]HistoryEntry, error) {
 	return out, nil
 }
 
-// restoreVersion replaces the current assessment with the snapshot at `timestamp`.
-// It also writes a fresh snapshot BEFORE restore (so the user can roll forward again).
-func restoreVersion(timestamp string) error {
-	src := filepath.Join(historyDir(), timestamp+".json")
+// restoreVersion replaces the current assessment for the given standard
+// with the snapshot at `timestamp`. It also writes a fresh snapshot BEFORE
+// restore (so the user can roll forward again).
+func restoreVersion(id string, timestamp string) error {
+	if id == "" {
+		return fmt.Errorf("standard id required")
+	}
+	src := filepath.Join(historyDir(id), timestamp+".json")
 	raw, err := os.ReadFile(src)
 	if err != nil {
 		return fmt.Errorf("read snapshot: %w", err)
 	}
 	// snapshot current before restore
-	if cur, err := os.ReadFile(assessmentPath()); err == nil && len(cur) > 0 {
-		if err := writeHistorySnapshot(cur); err != nil {
+	if cur, err := os.ReadFile(assessmentPath(id)); err == nil && len(cur) > 0 {
+		if err := writeHistorySnapshot(id, cur); err != nil {
 			return fmt.Errorf("snapshot current: %w", err)
 		}
 	}
-	return os.WriteFile(assessmentPath(), raw, 0o644)
+	return os.WriteFile(assessmentPath(id), raw, 0o644)
 }

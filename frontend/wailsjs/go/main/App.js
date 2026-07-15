@@ -6,30 +6,46 @@ export function ExportHTML() {
   return window['go']['main']['App']['ExportHTML']();
 }
 
+export function GetCurrentStandard() {
+  return window['go']['main']['App']['GetCurrentStandard']();
+}
+
+export function GetCurrentStandardID() {
+  return window['go']['main']['App']['GetCurrentStandardID']();
+}
+
 export function GetDataDir() {
   return window['go']['main']['App']['GetDataDir']();
 }
 
-export function GetStandards() {
-  return window['go']['main']['App']['GetStandards']();
+export function GetStandard(arg1) {
+  return window['go']['main']['App']['GetStandard'](arg1);
 }
 
 export function ImportHTML() {
   return window['go']['main']['App']['ImportHTML']();
 }
 
-export function ListHistory() {
-  return window['go']['main']['App']['ListHistory']();
+export function ListHistory(arg1) {
+  return window['go']['main']['App']['ListHistory'](arg1);
 }
 
-export function LoadAssessment() {
-  return window['go']['main']['App']['LoadAssessment']();
+export function ListStandards() {
+  return window['go']['main']['App']['ListStandards']();
 }
 
-export function RestoreVersion(arg1) {
-  return window['go']['main']['App']['RestoreVersion'](arg1);
+export function LoadAssessment(arg1) {
+  return window['go']['main']['App']['LoadAssessment'](arg1);
 }
 
-export function SaveAssessment(arg1) {
-  return window['go']['main']['App']['SaveAssessment'](arg1);
+export function RestoreVersion(arg1, arg2) {
+  return window['go']['main']['App']['RestoreVersion'](arg1, arg2);
+}
+
+export function SaveAssessment(arg1, arg2) {
+  return window['go']['main']['App']['SaveAssessment'](arg1, arg2);
+}
+
+export function SetCurrentStandard(arg1) {
+  return window['go']['main']['App']['SetCurrentStandard'](arg1);
 }

@@ -58,11 +58,20 @@ const MOCK_STANDARDS = {
     metadata: { standard: 'JR/T 0358-2026', title: '金融数据安全 数据安全能力体系', issuer: '中国人民银行', issue_date: '2026-06-06', version: '1.0' },
     dimensions: ['组织建设', '制度流程', '技术能力', '人员能力'],
     domains: [
-        { id: 'general_security', name: DOMAIN_NAMES[0], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 0).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id) })) },
-        { id: 'classification', name: DOMAIN_NAMES[1], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 1).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id) })) },
-        { id: 'lifecycle', name: DOMAIN_NAMES[2], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 2).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id) })) },
-        { id: 'operations', name: DOMAIN_NAMES[3], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 3).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id) })) },
+        { id: 'general_security', name: DOMAIN_NAMES[0], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 0).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id, 'jrt0358') })) },
+        { id: 'classification', name: DOMAIN_NAMES[1], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 1).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id, 'jrt0358') })) },
+        { id: 'lifecycle', name: DOMAIN_NAMES[2], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 2).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id, 'jrt0358') })) },
+        { id: 'operations', name: DOMAIN_NAMES[3], subdomains: SUBDOMAINS_FULL.filter(s => s.domain === 3).map(s => ({ ...s, levels: mkLevelsFromPdf(s.id, 'jrt0358') })) },
     ],
+};
+
+// v0.2 多标准：DSMM（GB/T 37988-2019）占位
+// 30 PA × 4 维 × 5 级 = 600 格，由 OCR 解析 build_standards.py 填充。
+// 当前占位：空 domains（UI 显示"该标准暂无数据"）。
+const MOCK_STANDARDS_GBT = {
+    metadata: { standard: 'GB/T 37988-2019', title: '信息安全技术 数据安全能力成熟度模型', issuer: '国家标准化管理委员会', issue_date: '2019-08-30', version: '0.1-placeholder' },
+    dimensions: ['组织建设', '制度流程', '技术工具', '人员能力'],
+    domains: [], // 30 PA 待 OCR 解析后填充
 };
 
 // 真实业务场景的模拟评估（demo 用）
@@ -89,6 +98,8 @@ const MOCK_CELLS = {
 };
 
 const MOCK_ASSESSMENT = { version: 1, updated_at: '2026-06-25T11:50:00+08:00', cells: MOCK_CELLS };
+// v0.2：DSMM 评估独立（空）
+const MOCK_CELLS_GBT = {};
 
 // 浏览器端模拟：把当前 assessment 渲染成只读 HTML 并下载
 function buildExportHTML() {
@@ -208,13 +219,40 @@ function triggerDownload(html, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// v0.2 多标准 mock state
+let __mockCurrentStandardId = 'jrt0358';
+function __mockGetStandardsById(id) {
+    return id === 'jrt0358' ? MOCK_STANDARDS : MOCK_STANDARDS_GBT;
+}
+function __mockGetCellsById(id) {
+    return id === 'jrt0358' ? MOCK_CELLS : MOCK_CELLS_GBT;
+}
+
 window.go = {
     main: {
         App: {
-            GetStandards: async () => MOCK_STANDARDS,
+            // v0.2 多标准 API
+            ListStandards: async () => [MOCK_STANDARDS.metadata, MOCK_STANDARDS_GBT.metadata],
+            GetStandard: async (id) => __mockGetStandardsById(id),
+            GetCurrentStandardID: async () => __mockCurrentStandardId,
+            GetCurrentStandard: async () => __mockGetStandardsById(__mockCurrentStandardId),
+            SetCurrentStandard: async (id) => { __mockCurrentStandardId = id; return null; },
+            LoadAssessment: async (id) => ({
+                standard_id: id,
+                version: 1,
+                updated_at: '2026-06-25T11:50:00+08:00',
+                cells: __mockGetCellsById(id),
+            }),
+            SaveAssessment: async (id, asm) => {
+                if (id === 'jrt0358') Object.assign(MOCK_CELLS, asm.cells || {});
+                else Object.assign(MOCK_CELLS_GBT, asm.cells || {});
+                return null;
+            },
+            ListHistory: async (id) => [],
+            RestoreVersion: async (id, ts) => null,
+            // 兼容老代码
+            GetStandards: async () => __mockGetStandardsById(__mockCurrentStandardId),
             GetDataDir: async () => 'E:\\jinrongdata\\preview',
-            LoadAssessment: async () => MOCK_ASSESSMENT,
-            SaveAssessment: async () => null,
             ExportHTML: async () => {
                 const html = buildExportHTML();
                 const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '-').slice(0, 19);
@@ -222,8 +260,6 @@ window.go = {
                 triggerDownload(html, fname);
                 return 'C:\\\\Users\\\\You\\\\Downloads\\\\' + fname;
             },
-            ListHistory: async () => [],
-            RestoreVersion: async () => null,
         },
     },
 };

@@ -14,9 +14,10 @@
     <!-- ===== Top toolbar (sticky, single line) ===== -->
     <header class="toolbar">
         <div class="brand-mark">金</div>
-        <div class="brand-text">
+        <div class="brand-text" id="brand-text" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" title="点击切换标准">
             <span class="brand-title">数据安全能力评估</span>
-            <span class="brand-sub" id="subtitle">JR/T 0358-2026</span>
+            <span class="brand-sub" id="subtitle">JR/T 0358-2026 · 金融数据安全 数据安全能力体系</span>
+            <span class="brand-sub-caret" aria-hidden="true">▾</span>
         </div>
         <div class="toolbar-spacer"></div>
         <div class="progress" title="已评估 / 总格子（19 子域 × 4 维度）">
@@ -127,6 +128,9 @@
         <span id="toast-msg"></span>
     </div>
 </div>
+
+<!-- 标准切换下拉：放在 body 末尾以脱离 .toolbar 的 backdrop-filter stacking context -->
+<div class="standard-menu" id="standard-menu" role="menu" hidden></div>
 
 <script src="./src/main.js" type="module"></script>
 </body>

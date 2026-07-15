@@ -1,6 +1,10 @@
 import './style.css';
 import {
-    GetStandards,
+    ListStandards,
+    GetStandard,
+    GetCurrentStandard,
+    GetCurrentStandardID,
+    SetCurrentStandard,
     LoadAssessment,
     SaveAssessment,
     ExportHTML,
@@ -13,8 +17,10 @@ import {
 // State
 // ============================================================
 const state = {
-    standards: null,
-    dimensions: [],
+    standardId: null,         // 当前 standard id（'jrt0358' / 'gbt37988'）
+    standards: null,          // 当前 standard 的 Standards 对象
+    standardsList: [],        // 所有可用标准（ListStandards 返回）
+    dimensions: [],           // 当前 standard 的 dimensions
     assessment: null,
     selected: null,           // { subId, dim } | null
     theme: new URLSearchParams(location.search).get('t')
@@ -36,14 +42,29 @@ async function init() {
 
     if (READ_ONLY && window.__INITIAL_STANDARDS__) {
         // 静态导出模式：直接吃注入数据，不调 Go 桥
+        state.standardId = window.__INITIAL_STANDARD_ID__ || 'jrt0358';
         state.standards = window.__INITIAL_STANDARDS__;
         state.dimensions = state.standards.dimensions;
+        state.columnLabels = state.standards.column_labels || state.dimensions;
         state.assessment = window.__INITIAL_ASSESSMENT__ || { version: 0, cells: {} };
+        state.standardsList = [state.standards.metadata];
     } else {
-        state.standards = await GetStandards();
+        // 1. 拉所有可用标准 + 当前 standard id
+        state.standardsList = await ListStandards();
+        state.standardId = await GetCurrentStandardID();
+        // 2. 拉当前 standard 的完整数据
+        state.standards = await GetCurrentStandard();
         state.dimensions = state.standards.dimensions;
-        state.assessment = await LoadAssessment();
+        state.columnLabels = state.standards.column_labels || state.dimensions;
+        // 3. 拉当前 standard 的评估
+        state.assessment = await LoadAssessment(state.standardId);
     }
+
+    // 渲染下拉按钮（仅在非 READ_ONLY 模式下有意义；READ_ONLY 显示当前标准即可）
+    renderStandardSwitcher();
+
+    // 更新窗口 Title（生产模式：wails runtime；mock 模式：no-op）
+    try { window.runtime?.WindowSetTitle?.(`数据安全能力评估 · ${state.standards.metadata.standard}`); } catch {}
 
     document.getElementById('subtitle').textContent =
         `${state.standards.metadata.standard} · ${state.standards.metadata.title}`;
@@ -82,10 +103,114 @@ async function init() {
     // 仪表盘首次渲染（无论默认 tab 是哪个，都先算好数据）
     renderDashboard();
 
-    // 默认选中第一个子域的"组织建设"（同时显示浮动面板）
-    const firstDom = state.standards.domains[0];
-    const firstSub = firstDom.subdomains[0];
-    selectCell(firstSub.id, state.dimensions[0]);
+    // 注意：默认不自动 selectCell，避免启动时从底部弹出"等级说明"抽屉。
+    // 用户点格子后才会 selectCell + 弹抽屉。
+    // (历史 v0.1 行为：自动 select 第一个格子 → 抽屉默认弹出 → 用户反馈"太打扰")
+}
+
+// ============================================================
+// Standard switcher (toolbar dropdown)
+// ============================================================
+
+function renderStandardSwitcher() {
+    const trigger = document.getElementById('brand-text');
+    const menu = document.getElementById('standard-menu');
+    if (!trigger || !menu) return;
+    const cur = state.standardsList.find(s => s.standard === state.standards?.metadata?.standard)
+            || state.standardsList[0];
+    if (!cur) return;
+    // 菜单内容
+    menu.innerHTML = state.standardsList.map(s => `
+        <button class="standard-menu-item ${s.standard === cur.standard ? 'active' : ''}"
+            data-std="${escapeHtml(s.standard)}" role="menuitem">
+            <span class="standard-menu-item-code">${escapeHtml(s.standard)}</span>
+            <span class="standard-menu-item-title">${escapeHtml(s.title || '')}</span>
+        </button>
+    `).join('');
+    // 触发器：点击切换菜单
+    trigger.onclick = (e) => {
+        e.stopPropagation();
+        const isOpen = !menu.hidden;
+        closeAllSwitcherMenus();
+        menu.hidden = isOpen;
+        // position: fixed → JS 算坐标
+        if (!isOpen) positionStandardMenu();
+        trigger.setAttribute('aria-expanded', String(!isOpen));
+    };
+    trigger.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger.click(); }
+    };
+    // 菜单项点击
+    menu.querySelectorAll('.standard-menu-item').forEach(item => {
+        item.onclick = (e) => {
+            e.stopPropagation();
+            switchStandard(item.dataset.std);
+            menu.hidden = true;
+            trigger.setAttribute('aria-expanded', 'false');
+        };
+    });
+    // 点击外部关闭（只绑一次）
+    if (!renderStandardSwitcher._docClickBound) {
+        document.addEventListener('click', closeAllSwitcherMenus);
+        window.addEventListener('resize', () => { if (!menu.hidden) positionStandardMenu(); });
+        renderStandardSwitcher._docClickBound = true;
+    }
+}
+
+// 菜单 fixed 定位：根据 trigger 的 getBoundingClientRect 算 top/left
+function positionStandardMenu() {
+    const trigger = document.getElementById('brand-text');
+    const menu = document.getElementById('standard-menu');
+    if (!trigger || !menu) return;
+    const r = trigger.getBoundingClientRect();
+    const w = menu.offsetWidth || 360;
+    let left = r.left;
+    let top = r.bottom + 6;
+    // 防止菜单超出视口右边
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    if (left < 8) left = 8;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+}
+
+function closeAllSwitcherMenus() {
+    document.querySelectorAll('.standard-menu').forEach(m => m.hidden = true);
+    const trigger = document.getElementById('brand-text');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+async function switchStandard(newStandardCode) {
+    if (newStandardCode === state.standards?.metadata?.standard) return;
+    // 找对应 standard_id（metadata.standard 是 "GB/T 37988-2019"，但 state.standardId 是 "gbt37988"）
+    // ListStandards 返回 metadata，没有 id 字段 → 我们用 code → id 映射
+    const codeToId = {
+        'JR/T 0358-2026': 'jrt0358',
+        'GB/T 37988-2019': 'gbt37988',
+    };
+    const newId = codeToId[newStandardCode] || newStandardCode;
+    try {
+        await SetCurrentStandard(newId);
+        state.standardId = newId;
+        state.standards = await GetStandard(newId);
+        state.dimensions = state.standards.dimensions;
+        state.columnLabels = state.standards.column_labels || state.dimensions;
+        state.assessment = await LoadAssessment(newId);
+        // 重新渲染
+        document.getElementById('subtitle').textContent =
+            `${state.standards.metadata.standard} · ${state.standards.metadata.title}`;
+        try { window.runtime?.WindowSetTitle?.(`数据安全能力评估 · ${state.standards.metadata.standard}`); } catch {}
+        renderStandardSwitcher();
+        renderHeatmap();
+        updateProgress();
+        renderReference(null);
+        // 切换标准后不自动 selectCell，避免抽屉默认弹出。
+        // (历史 v0.1 行为：自动 select 第一个格子 → 抽屉弹出 → 用户反馈"太打扰")
+        if (typeof renderDashboard === 'function') renderDashboard();
+        showToast(`已切换到 ${newStandardCode}`);
+    } catch (err) {
+        console.error('switchStandard failed:', err);
+        showToast(`切换失败：${err.message || err}`);
+    }
 }
 
 // ============================================================
@@ -95,14 +220,39 @@ function renderHeatmap() {
     const wrap = document.getElementById('heatmap');
     wrap.innerHTML = '';
 
-    // header row (X axis)
+    // 标准无数据占位（v0.2：DSMM OCR 还没填内容时显示友好提示）
+    if (!state.standards.domains || state.standards.domains.length === 0) {
+        wrap.style.display = 'flex';
+        wrap.style.alignItems = 'center';
+        wrap.style.justifyContent = 'center';
+        wrap.style.minHeight = '320px';
+        const empty = document.createElement('div');
+        empty.className = 'heatmap-empty';
+        const isGBT = state.standardId === 'gbt37988';
+        empty.innerHTML = `
+            <div class="heatmap-empty-title">该标准的答案库暂无内容</div>
+            <div class="heatmap-empty-sub">
+                ${isGBT
+                    ? 'GB/T 37988-2019 (DSMM) 30 PA × 4 维 × 5 级 = 600 格描述正在解析 GB/T 37988-2019 PDF 中，<br>完成后会自动填充。切回 JR/T 0358-2026 可继续评估。'
+                    : '该标准尚无能力域数据。'}
+            </div>
+        `;
+        wrap.appendChild(empty);
+        return;
+    }
+    wrap.style.display = '';
+    wrap.style.alignItems = '';
+    wrap.style.justifyContent = '';
+    wrap.style.minHeight = '';
+
+    // header row (X axis) — 用 columnLabels 显示，dimensions 做 key
     const corner = document.createElement('div');
     corner.className = 'hg hg-corner';
     wrap.appendChild(corner);
-    for (const dim of state.dimensions) {
+    for (let i = 0; i < state.dimensions.length; i++) {
         const h = document.createElement('div');
         h.className = 'hg hg-axis';
-        h.textContent = dim;
+        h.textContent = state.columnLabels[i] || state.dimensions[i];
         wrap.appendChild(h);
     }
 
@@ -232,7 +382,10 @@ function selectCell(subId, dim) {
 
 function updateProgress() {
     let done = 0;
-    const total = 76;
+    // 理论总格数：subdomains_count × dimensions_count。
+    // DSMM 模式 standards.gbt37988.json 的 domains=[] 时也按"理论 30 PA × 4 维"显示。
+    const expectedSubs = expectedSubdomainCount(state.standardId);
+    const total = expectedSubs * state.dimensions.length;
     for (const dom of state.standards.domains) {
         for (const sub of dom.subdomains) {
             for (const dim of state.dimensions) {
@@ -242,6 +395,19 @@ function updateProgress() {
     }
     document.getElementById('progress-done').textContent = String(done);
     document.getElementById('progress-total').textContent = String(total);
+    // 同步 progress title
+    const prog = document.querySelector('.progress');
+    if (prog) {
+        const dimLabel = state.standardId === 'gbt37988' ? '30 PA' : (state.standards.domains.reduce((n, d) => n + d.subdomains.length, 0) + ' 子域');
+        prog.title = `已评估 / 总格子（${dimLabel} × ${state.dimensions.length} 维度）`;
+    }
+}
+
+// 理论子域数（OCR 还没填时也能显示完整进度）
+function expectedSubdomainCount(standardId) {
+    if (standardId === 'gbt37988') return 30;
+    if (standardId === 'jrt0358') return state.standards.domains.reduce((n, d) => n + d.subdomains.length, 0) || 19;
+    return state.standards.domains.reduce((n, d) => n + d.subdomains.length, 0);
 }
 
 // ============================================================
@@ -262,14 +428,14 @@ function renderReference(subId) {
     if (!sub) return;
     subNameEl.textContent = `（${sub.name}）`;
 
-    // header row (X axis)
+    // header row (X axis) — 用 columnLabels 显示
     const corner = document.createElement('div');
     corner.className = 'rg rg-corner';
     ref.appendChild(corner);
-    for (const dim of state.dimensions) {
+    for (let i = 0; i < state.dimensions.length; i++) {
         const h = document.createElement('div');
         h.className = 'rg rg-axis';
-        h.textContent = dim;
+        h.textContent = state.columnLabels[i] || state.dimensions[i];
         ref.appendChild(h);
     }
 
@@ -295,8 +461,9 @@ function renderReference(subId) {
             const isCurrentLevel = userLevel === lvl;
             if (!txt) {
                 cell.className = 'rg rg-desc dash';
-                cell.textContent = '— 沿用低一级';
-                // PDF 5.1 节 b 条：专项能力"—" = 通用同等级 + 专项低一等级（双继承）
+                // PDF 5.1 节 b 条：专项能力"—" = 通用同等级 + 专项低一等级
+                // 但等级 1 没有低一级可继承 → 直接显示 "—"
+                cell.textContent = lvl === 1 ? '—' : '— 沿用低一级';
                 // 专项子域（sub.id !== 'general_security'）且通用 sub 存在 → 标注可 hover
                 if (sub.id !== 'general_security') {
                     const generalSub = findSubdomain('general_security');
@@ -310,6 +477,8 @@ function renderReference(subId) {
             } else {
                 cell.className = 'rg rg-desc';
                 cell.textContent = txt;
+                // 浏览器原生 tooltip：长内容截断到 6 行后，hover 看完整
+                cell.title = txt;
             }
             // 强调逻辑：
             // - 已选等级（userLevel > 0）：只高亮「选中的那一格」（行 × 列交叉）
@@ -910,7 +1079,7 @@ async function openHistoryModal() {
     list.innerHTML = '<div class="history-empty">加载中…</div>';
     showModal('modal-history');
     try {
-        const items = await ListHistory();
+        const items = await ListHistory(state.standardId);
         if (!items || items.length === 0) {
             list.innerHTML = '<div class="history-empty">暂无历史版本<br><small>每次保存时会自动创建快照</small></div>';
             return;
@@ -935,8 +1104,8 @@ async function openHistoryModal() {
             restoreBtn.addEventListener('click', async () => {
                 if (!confirm(`确定还原到 ${formatTimestamp(item.timestamp)}？\n当前评估会自动备份。`)) return;
                 try {
-                    await RestoreVersion(item.timestamp);
-                    state.assessment = await LoadAssessment();
+                    await RestoreVersion(state.standardId, item.timestamp);
+                    state.assessment = await LoadAssessment(state.standardId);
                     renderHeatmap();
                     updateProgress();
                     renderReference(state.selected?.subId);
@@ -1089,7 +1258,7 @@ function hideModal(id) { document.getElementById(id).classList.remove('show'); }
 // ============================================================
 async function persist() {
     try {
-        await SaveAssessment(state.assessment);
+        await SaveAssessment(state.standardId, state.assessment);
     } catch (e) {
         console.error('SaveAssessment failed:', e);
         alert('保存失败：' + e);

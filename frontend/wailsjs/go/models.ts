@@ -1,6 +1,7 @@
 export namespace main {
 	
 	export class Assessment {
+	    standard_id: string;
 	    version: number;
 	    updated_at: string;
 	    cells: {[key: string]: };
@@ -11,6 +12,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.standard_id = source["standard_id"];
 	        this.version = source["version"];
 	        this.updated_at = source["updated_at"];
 	        this.cells = source["cells"];
@@ -130,9 +132,9 @@ export namespace main {
 	    title: string;
 	    issuer: string;
 	    issue_date: string;
-	    extract_source: string;
-	    extract_method: string;
-	    version: string;
+	    extract_source?: string;
+	    extract_method?: string;
+	    version?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new StandardsMetadata(source);
@@ -152,6 +154,7 @@ export namespace main {
 	export class Standards {
 	    metadata: StandardsMetadata;
 	    dimensions: string[];
+	    column_labels?: string[];
 	    domains: Domain[];
 	
 	    static createFrom(source: any = {}) {
@@ -162,6 +165,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.metadata = this.convertValues(source["metadata"], StandardsMetadata);
 	        this.dimensions = source["dimensions"];
+	        this.column_labels = source["column_labels"];
 	        this.domains = this.convertValues(source["domains"], Domain);
 	    }
 	

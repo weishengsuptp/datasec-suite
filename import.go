@@ -108,6 +108,18 @@ func importHTML() (Assessment, error) {
 		return Assessment{}, fmt.Errorf("该文件不是有效的导出报告：%w", err)
 	}
 
+	// 3.5 v0.2 多标准：校验 standard_id 匹配
+	reportStandardID, err := extractQuotedString(raw, "window.__INITIAL_STANDARD_ID__")
+	if err != nil {
+		return Assessment{}, fmt.Errorf("该报告缺少 standard_id 标记（v0.1 旧版报告？请重新导出）：%w", err)
+	}
+	if reportStandardID != currentStandardID {
+		return Assessment{}, fmt.Errorf(
+			"该报告属于 %q 标准，当前激活的是 %q。请先在工具栏下拉切换到对应标准后再导入",
+			reportStandardID, currentStandardID,
+		)
+	}
+
 	// 4. parse JSON
 	var asm Assessment
 	if err := json.Unmarshal(jsonBytes, &asm); err != nil {
@@ -119,9 +131,32 @@ func importHTML() (Assessment, error) {
 	}
 
 	// 5. write (saveAssessment 自动 snapshot 旧版本)
-	if err := saveAssessment(asm); err != nil {
+	if err := saveAssessment(currentStandardID, asm); err != nil {
 		return Assessment{}, fmt.Errorf("保存评估失败：%w", err)
 	}
 
 	return asm, nil
+}
+
+// extractQuotedString reads a `marker = "value"` style assignment and returns
+// the unquoted string value. Used for __INITIAL_STANDARD_ID__ = "jrt0358".
+func extractQuotedString(raw []byte, marker string) (string, error) {
+	startRe := regexp.MustCompile(regexp.QuoteMeta(marker) + `\s*=\s*"`)
+	loc := startRe.FindIndex(raw)
+	if loc == nil {
+		return "", fmt.Errorf("未找到标记 %q", marker)
+	}
+	i := loc[1]
+	for i < len(raw) && raw[i] != '"' {
+		if raw[i] == '\\' && i+1 < len(raw) {
+			i += 2
+			continue
+		}
+		i++
+	}
+	if i >= len(raw) || raw[i] != '"' {
+		return "", fmt.Errorf("标记 %q 的字符串未闭合", marker)
+	}
+	// 简化：不解析转义（standard_id 不含特殊字符）
+	return string(raw[loc[1]:i]), nil
 }
