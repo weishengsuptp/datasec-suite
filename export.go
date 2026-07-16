@@ -59,8 +59,8 @@ func exportHTML() (string, error) {
 
 	mainJS := stripImports(mainJSRaw)
 
-	// HTML 框架（与 standalone 类似，但 modal-edit/modal-history 仍渲染，
-	// 由 main.js init() 在 READ_ONLY 模式下 .remove() 掉）
+	// HTML 框架（与 frontend/index.html 一致：v0.3 浮动 detail card，
+	// 旧 v0.2 的 panel-ref / modal-edit / modal-history 已全部移除）
 	var b strings.Builder
 	b.WriteString("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n")
 	fmt.Fprintf(&b, "<meta charset=\"UTF-8\">\n")
@@ -77,19 +77,19 @@ func exportHTML() (string, error) {
 	b.WriteString(`<div id="app">
     <header class="toolbar">
         <div class="brand-mark">金</div>
-        <div class="brand-text">
+        <div class="brand-text" id="brand-text" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" title="点击切换标准">
             <span class="brand-title">数据安全能力评估</span>
-            <span class="brand-sub" id="subtitle">JR/T 0358-2026</span>
+            <span class="brand-sub" id="subtitle">—</span>
+            <span class="brand-sub-caret" aria-hidden="true">▾</span>
         </div>
-        <div class="standard-switcher" id="standard-switcher"></div>
         <div class="toolbar-spacer"></div>
-        <div class="progress" title="已评估 / 总格子（19 子域 × 4 维度）">
+        <div class="progress" title="已评估 / 总格子">
             <span class="progress-dot"></span>
             <span><span class="progress-num" id="progress-done">0</span><span class="progress-sep">/</span><span id="progress-total">76</span></span>
         </div>
         <nav class="tab-switcher" id="tab-bar">
-            <button class="tab-btn" data-tab="heatmap" type="button"
-                data-tooltip="19 子域 × 4 维度的能力热力图 — 点击格子查看等级说明，双击编辑">
+            <button class="tab-btn active" data-tab="heatmap" type="button"
+                data-tooltip="子域 × 4 维度的能力热力图 — 点击格子查看等级说明">
                 <span class="tab-icon">▦</span>
                 <span class="tab-label">评估热力图</span>
             </button>
@@ -104,21 +104,49 @@ func exportHTML() (string, error) {
             <button class="theme-btn" data-theme="cool" title="极光 · 翠绿">青</button>
             <button class="theme-btn" data-theme="deep" title="星海 · 深蓝">海</button>
         </div>
-        <button id="btn-export" class="btn btn-primary" title="导出静态 HTML 报告">导出</button>
-        <button id="btn-history" class="btn" title="历史快照，可还原任意版本">历史</button>
     </header>
     <main class="stage">
-        <div class="pane pane-heatmap" data-pane="heatmap">
-            <section class="panel panel-heatmap">
+        <div class="pane pane-heatmap active" data-pane="heatmap">
+            <section class="panel panel-heatmap" id="panel-heatmap-wrap">
                 <div class="heatmap" id="heatmap"></div>
             </section>
-            <section class="panel panel-ref" id="panel-ref">
-                <button class="panel-ref-close" id="panel-ref-close" title="关闭（ESC）" aria-label="关闭等级说明">×</button>
-                <header class="panel-head">
-                    <h2>等级说明 <span class="ref-subname" id="ref-sub-name">（请选择上方格子）</span></h2>
-                    <span class="panel-hint">"—" 表示沿用低一等级要求</span>
+            <section class="panel panel-detail" id="panel-detail" hidden>
+                <div class="panel-detail-card" id="panel-detail-card">
+                <header class="panel-head detail-head">
+                    <h2>
+                        <span class="detail-subname" id="detail-sub-name">—</span>
+                        <span class="detail-sep">·</span>
+                        <span class="detail-dimname" id="detail-dim-name">—</span>
+                    </h2>
+                    <button class="panel-ref-close" id="panel-detail-close" title="关闭（ESC）" aria-label="关闭详情页">×</button>
                 </header>
-                <div class="ref-grid" id="ref-grid"></div>
+                <div class="detail-body">
+                    <div class="detail-pane detail-user">
+                        <div class="detail-pane-head">
+                            <h3>你的评估</h3>
+                            <button class="btn btn-ghost" id="btn-detail-edit" title="进入编辑态">编辑</button>
+                        </div>
+                        <div class="detail-level-row" id="detail-level-row"></div>
+                        <div class="detail-note">
+                            <textarea id="detail-note" rows="8" readonly
+                                placeholder="说明本机构在「组织建设 / 制度流程 / 技术能力 / 人员能力」方面的实际做法、可量化指标、佐证材料链接，以及选择该等级的理由…"></textarea>
+                        </div>
+                        <div class="detail-actions">
+                            <button class="btn btn-ghost" id="btn-detail-clear" title="清空等级与描述（不会自动保存，需要点保存）">清空</button>
+                            <span class="detail-hint" id="detail-hint">Ctrl+S 保存 · ESC 返回</span>
+                            <button class="btn" id="btn-detail-back" title="返回热力图">返回</button>
+                            <button class="btn btn-primary" id="btn-detail-save" title="保存修改">保存</button>
+                        </div>
+                    </div>
+                    <div class="detail-pane detail-standard">
+                        <div class="detail-pane-head">
+                            <h3>标准 · <span id="detail-standard-dim">—</span></h3>
+                            <span class="detail-pane-hint">"—" 表示沿用低一等级要求</span>
+                        </div>
+                        <div class="detail-levels" id="detail-levels"></div>
+                    </div>
+                </div>
+                </div>
             </section>
         </div>
         <div class="pane pane-dashboard" data-pane="dashboard">
@@ -127,34 +155,19 @@ func exportHTML() (string, error) {
             </section>
         </div>
     </main>
-    <div id="modal-edit" class="modal-overlay">
-        <div class="modal modal-wide">
+    <div id="modal-unsaved" class="modal-overlay">
+        <div class="modal">
             <div class="modal-header">
-                <div class="modal-title">编辑评估<small id="modal-edit-subtitle"></small></div>
-                <button class="modal-close" data-close="modal-edit" aria-label="关闭">×</button>
+                <div class="modal-title">有未保存的修改</div>
             </div>
-            <div class="edit-section">
-                <div class="edit-label">① 选择等级</div>
-                <div class="level-picker" id="edit-level-picker"></div>
-            </div>
-            <div class="edit-section">
-                <div class="edit-label">② 填写本机构实际描述与选择依据</div>
-                <textarea id="edit-note" rows="4" placeholder="说明本机构在「组织建设 / 制度流程 / 技术能力 / 人员能力」方面的实际做法、可量化指标、佐证材料链接，以及选择该等级的理由…"></textarea>
+            <div class="unsaved-body">
+                <p>当前评估有未保存的修改，是否保存？</p>
             </div>
             <div class="modal-actions">
-                <button class="btn" data-close="modal-edit">取消</button>
-                <button id="edit-clear-note" class="btn btn-ghost">清空描述</button>
-                <button id="edit-save" class="btn btn-primary">保存</button>
+                <button class="btn" id="unsaved-cancel" data-close="modal-unsaved">取消</button>
+                <button class="btn" id="unsaved-discard">不保存</button>
+                <button class="btn btn-primary" id="unsaved-save">保存</button>
             </div>
-        </div>
-    </div>
-    <div id="modal-history" class="modal-overlay">
-        <div class="modal modal-wide">
-            <div class="modal-header">
-                <div class="modal-title">历史版本<small id="modal-history-subtitle">每次保存前自动快照</small></div>
-                <button class="modal-close" data-close="modal-history" aria-label="关闭">×</button>
-            </div>
-            <div id="history-list" class="history-list"></div>
         </div>
     </div>
     <div id="toast" class="toast">
@@ -162,8 +175,6 @@ func exportHTML() (string, error) {
         <span id="toast-msg"></span>
     </div>
 </div>
-
-<!-- 标准切换下拉：放在 body 末尾以脱离 .toolbar 的 backdrop-filter stacking context -->
 <div class="standard-menu" id="standard-menu" role="menu" hidden></div>
 `)
 
